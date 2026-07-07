@@ -30,7 +30,7 @@ export default function AvailabilityGrid({
       >
         <h2 style={sectionLabel}>01 — Availability</h2>
         <div style={{ fontSize: 12, color: colors.mute }}>
-          Capacity: Sun/Mon/Tue/Wed × 2 · Thu × 3 · Wknd × 1
+          Roster: Sun/Mon/Tue/Wed × 2 (alternating) · Thu × 3 · Wknd × 1
         </div>
       </div>
 

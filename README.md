@@ -4,8 +4,8 @@ Availability-based scheduler for RA on-duty rotations. Handles a team of 11 cove
 
 ## Rules encoded
 
-- **Sun / Mon / Tue / Wed**: 2 RAs each, fixed for the semester
-- **Thursday**: 3 RAs rotating one per week
+- **Sun / Mon / Tue / Wed**: 2 RAs assigned per night, one on duty per week (they alternate)
+- **Thursday**: 3 RAs, one on duty per week (rotates through)
 - **Weekend (Fri–Sat)**: 1 RA takes the full weekend
 - Every non-Thu RA gets 1 weekend shift; Thu RAs split the rest evenly
 

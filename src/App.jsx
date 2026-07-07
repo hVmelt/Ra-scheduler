@@ -43,10 +43,10 @@ export default function App() {
     for (let w = 0; w < weeks; w++) {
       weeksOut.push({
         week: w + 1,
-        sun: groups.sun,
-        mon: groups.mon,
-        tue: groups.tue,
-        wed: groups.wed,
+        sun: [groups.sun[w % groups.sun.length]],
+        mon: [groups.mon[w % groups.mon.length]],
+        tue: [groups.tue[w % groups.tue.length]],
+        wed: [groups.wed[w % groups.wed.length]],
         thu: [groups.thu[w % groups.thu.length]],
         weekend: weekends[w] != null ? [weekends[w]] : [],
       });
@@ -149,10 +149,10 @@ export default function App() {
               fontSize: 15,
             }}
           >
-            Everyone checks off which nights they're available. The tool
-            assigns each of the 11 RAs to one weeknight (Sun–Wed take 2 each,
-            Thu takes 3) and rotates one RA through each weekend so everyone
-            gets a shift.
+            Everyone checks off which nights they're available. Each of the
+            11 RAs is assigned to one weeknight — Sun–Wed have 2 RAs paired
+            (alternating weekly), Thu has 3 in rotation, and one RA covers
+            each weekend.
           </p>
         </div>
 
