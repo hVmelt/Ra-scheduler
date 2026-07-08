@@ -5,11 +5,12 @@ import { WEEKNIGHT_KEYS } from './constants.js';
 import { makeDefaultRAs } from './scheduler/model.js';
 import { solve } from './scheduler/solve.js';
 import { distributeWeekends } from './scheduler/weekends.js';
-import { exportText } from './utils/export.js';
+import { exportText, buildFilename } from './utils/export.js';
+import { computeBreakDays } from './utils/dates.js';
 import { colors, font } from './styles.js';
 
 import AvailabilityGrid from './components/AvailabilityGrid.jsx';
-import Timeframe from './components/Timeframe.jsx';
+import Semester from './components/Semester.jsx';
 import ScheduleTable from './components/ScheduleTable.jsx';
 import StatsPanel from './components/StatsPanel.jsx';
 
@@ -17,9 +18,17 @@ export default function App() {
   const [ras, setRAs] = useState(makeDefaultRAs);
   const [weeks, setWeeks] = useState(17);
   const [startDate, setStartDate] = useState('2026-08-24');
+  const [building, setBuilding] = useState('');
+  const [semesterName, setSemesterName] = useState('');
+  const [breaks, setBreaks] = useState([]);
   const [copied, setCopied] = useState(false);
 
   const assignment = useMemo(() => solve(ras), [ras]);
+
+  const breakDaysMap = useMemo(
+    () => computeBreakDays(startDate, breaks, weeks),
+    [startDate, breaks, weeks]
+  );
 
   const availWarnings = useMemo(() => {
     const warnings = [];
@@ -37,19 +46,56 @@ export default function App() {
     const groups = { sun: [], mon: [], tue: [], wed: [], thu: [] };
     ras.forEach((r) => groups[assignment[r.id]].push(r.id));
 
-    const { weekends, completed } = distributeWeekends(ras, assignment, weeks);
+    const isBreak = (w, d) => breakDaysMap.get(w)?.days.has(d) ?? false;
+
+    // Count active weekends to size the distribution
+    let activeWeekends = 0;
+    for (let w = 0; w < weeks; w++) {
+      if (!isBreak(w, 'weekend')) activeWeekends += 1;
+    }
+
+    const { weekends: weekendResult, completed } = distributeWeekends(
+      ras,
+      assignment,
+      Math.max(0, activeWeekends)
+    );
+
+    // Per-day alternation counters — only advance on non-break days
+    const counters = { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0 };
+    let weekendIdx = 0;
 
     const weeksOut = [];
     for (let w = 0; w < weeks; w++) {
-      weeksOut.push({
+      const entry = breakDaysMap.get(w);
+      const breakDays = entry?.days ?? new Set();
+      const breakLabels = entry?.labels ?? new Set();
+
+      const wk = {
         week: w + 1,
-        sun: [groups.sun[w % groups.sun.length]],
-        mon: [groups.mon[w % groups.mon.length]],
-        tue: [groups.tue[w % groups.tue.length]],
-        wed: [groups.wed[w % groups.wed.length]],
-        thu: [groups.thu[w % groups.thu.length]],
-        weekend: weekends[w] != null ? [weekends[w]] : [],
+        breakDays,
+        breakLabels: [...breakLabels],
+        sun: [],
+        mon: [],
+        tue: [],
+        wed: [],
+        thu: [],
+        weekend: [],
+      };
+
+      ['sun', 'mon', 'tue', 'wed', 'thu'].forEach((d) => {
+        if (breakDays.has(d)) return;
+        const pool = groups[d];
+        if (pool.length === 0) return;
+        wk[d] = [pool[counters[d] % pool.length]];
+        counters[d] += 1;
       });
+
+      if (!breakDays.has('weekend') && weekendResult[weekendIdx] != null) {
+        wk.weekend = [weekendResult[weekendIdx]];
+        weekendIdx += 1;
+      }
+
+      weeksOut.push(wk);
     }
 
     const stats = {};
@@ -61,7 +107,7 @@ export default function App() {
     });
 
     return { weeks: weeksOut, stats };
-  }, [ras, weeks, assignment]);
+  }, [ras, weeks, assignment, breakDaysMap]);
 
   const nameFor = (id) => {
     const r = ras.find((x) => x.id === id);
@@ -87,7 +133,15 @@ export default function App() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(
-        exportText({ schedule, ras, assignment, startDate, nameFor })
+        exportText({
+          schedule,
+          ras,
+          assignment,
+          startDate,
+          nameFor,
+          building,
+          semesterName,
+        })
       );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -95,15 +149,28 @@ export default function App() {
   };
 
   const handleDownload = () => {
-    const text = exportText({ schedule, ras, assignment, startDate, nameFor });
+    const text = exportText({
+      schedule,
+      ras,
+      assignment,
+      startDate,
+      nameFor,
+      building,
+      semesterName,
+    });
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ra-schedule.txt';
+    a.download = buildFilename(building, semesterName);
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const headerLabel =
+    building || semesterName
+      ? [building, semesterName].filter(Boolean).join(' · ').toUpperCase()
+      : 'Residential Life';
 
   return (
     <div
@@ -126,7 +193,7 @@ export default function App() {
               fontWeight: 600,
             }}
           >
-            Residential Life
+            {headerLabel}
           </div>
           <h1
             style={{
@@ -165,11 +232,17 @@ export default function App() {
           onSetOverride={handleSetOverride}
         />
 
-        <Timeframe
+        <Semester
+          building={building}
+          semesterName={semesterName}
           weeks={weeks}
           startDate={startDate}
+          breaks={breaks}
+          onBuilding={setBuilding}
+          onSemesterName={setSemesterName}
           onWeeks={setWeeks}
           onStartDate={setStartDate}
+          onBreaks={setBreaks}
         />
 
         {schedule && (
@@ -205,8 +278,9 @@ export default function App() {
         >
           <Info size={12} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            Break weeks appear in the schedule with dates — handle those
-            separately per your process.
+            Break days are skipped individually — each day's pair alternation
+            picks up where it left off, so shifts stay balanced across the
+            semester.
           </div>
         </div>
       </div>

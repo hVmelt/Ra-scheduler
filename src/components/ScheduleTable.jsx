@@ -10,6 +10,24 @@ import {
   mono,
 } from '../styles.js';
 
+const ALL_DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'weekend'];
+
+function BreakCell({ background }) {
+  return (
+    <td
+      style={{
+        ...tdStyle,
+        background,
+        color: colors.faint,
+        fontStyle: 'italic',
+        fontSize: 11,
+      }}
+    >
+      —
+    </td>
+  );
+}
+
 export default function ScheduleTable({
   schedule,
   startDate,
@@ -66,6 +84,55 @@ export default function ScheduleTable({
           <tbody>
             {schedule.weeks.map((wk) => {
               const dates = getWeekDates(startDate, wk.week);
+              const allBreak = ALL_DAYS.every((d) => wk.breakDays.has(d));
+
+              if (allBreak) {
+                const label = wk.breakLabels.join(', ') || 'Break';
+                return (
+                  <tr
+                    key={wk.week}
+                    style={{
+                      borderBottom: `1px solid ${colors.borderSoft}`,
+                      background: colors.soft,
+                    }}
+                  >
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontWeight: 700,
+                        color: colors.faint,
+                      }}
+                    >
+                      {wk.week}
+                      {dates && (
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: colors.faint,
+                            fontWeight: 400,
+                          }}
+                        >
+                          {dates.sun}
+                        </div>
+                      )}
+                    </td>
+                    <td
+                      colSpan={6}
+                      style={{
+                        ...tdStyle,
+                        fontStyle: 'italic',
+                        color: colors.mute,
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase',
+                        fontSize: 11,
+                      }}
+                    >
+                      Break — {label}
+                    </td>
+                  </tr>
+                );
+              }
+
               return (
                 <tr
                   key={wk.week}
@@ -91,31 +158,43 @@ export default function ScheduleTable({
                       </div>
                     )}
                   </td>
-                  {['sun', 'mon', 'tue', 'wed'].map((d) => (
-                    <td key={d} style={tdStyle}>
-                      {wk[d].map(nameFor).join(', ')}
+                  {['sun', 'mon', 'tue', 'wed'].map((d) =>
+                    wk.breakDays.has(d) ? (
+                      <BreakCell key={d} background={colors.soft} />
+                    ) : (
+                      <td key={d} style={tdStyle}>
+                        {wk[d].map(nameFor).join(', ')}
+                      </td>
+                    )
+                  )}
+                  {wk.breakDays.has('thu') ? (
+                    <BreakCell background={colors.soft} />
+                  ) : (
+                    <td style={{ ...tdStyle, background: colors.thuTint }}>
+                      {wk.thu.map(nameFor).join(', ')}
                     </td>
-                  ))}
-                  <td style={{ ...tdStyle, background: colors.thuTint }}>
-                    {wk.thu.map(nameFor).join(', ')}
-                  </td>
-                  <td style={{ ...tdStyle, background: colors.weekendTint }}>
-                    {wk.weekend.map(nameFor).join(', ') || (
-                      <span style={{ color: '#dc2626' }}>—</span>
-                    )}
-                    {dates && wk.weekend.length > 0 && (
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: colors.faint,
-                          fontWeight: 400,
-                          marginTop: 2,
-                        }}
-                      >
-                        {dates.weekend}
-                      </div>
-                    )}
-                  </td>
+                  )}
+                  {wk.breakDays.has('weekend') ? (
+                    <BreakCell background={colors.soft} />
+                  ) : (
+                    <td style={{ ...tdStyle, background: colors.weekendTint }}>
+                      {wk.weekend.map(nameFor).join(', ') || (
+                        <span style={{ color: '#dc2626' }}>—</span>
+                      )}
+                      {dates && wk.weekend.length > 0 && (
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: colors.faint,
+                            fontWeight: 400,
+                            marginTop: 2,
+                          }}
+                        >
+                          {dates.weekend}
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
